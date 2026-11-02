@@ -1,0 +1,66 @@
+name: Bug report
+description: Report something that isn't working in Alter
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill in the details
+        below so it can be reproduced and fixed.
+  - type: input
+    id: version
+    attributes:
+      label: Alter version
+      description: e.g. 2026.11.02 (see the app's About screen)
+      placeholder: "2026.11.02"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device & Android version
+      placeholder: "e.g. Pixel 6, Android 14"
+    validations:
+      required: true
+  - type: dropdown
+    id: tool
+    attributes:
+      label: Which tool?
+      options:
+        - Regex Manager
+        - Smali in Regex
+        - Alert Dialog Generator
+        - Rootless dump DEX (Sandbox)
+        - Rootless dump DEX (Inject)
+        - Root dump DEX
+        - il2cpp dumper (Static)
+        - il2cpp dumper (Inject)
+        - Other / app in general
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What did you do, step by step?
+      placeholder: |
+        1. Open ...
+        2. Tap ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs. actual
+      description: What did you expect to happen, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots / logs (optional)
+      description: Attach anything that helps illustrate the problem.
+    validations:
+      required: false

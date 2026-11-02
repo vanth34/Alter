@@ -1,0 +1,125 @@
+ALTER — END USER LICENSE AGREEMENT AND TERMS OF USE
+Copyright (c) 2026 Alter. All rights reserved.
+
+By installing, launching, or using Alter ("the App"), you agree to this
+Agreement in full. If you do not agree, do not use the App.
+
+
+1. WHAT ALTER IS
+
+Alter is a tool for analysing and reverse engineering Android application
+packages (APK files). Among other things it can:
+- unpack DEX bytecode from installed apps and APK files, with or without root;
+- dump IL2CPP (Unity) metadata and produce a readable dump and helper scripts;
+- patch, repackage, inject into, re-sign, or keep the original signature of an
+  APK so that it dumps its own contents at runtime;
+- merge split application bundles (apks / xapk / apkm) into a single APK;
+- generate regular expressions, dialog templates, and other helper content.
+
+Alter is intended for software interoperability research, security analysis,
+education, debugging, and working with software that you have created or that
+you are otherwise legally permitted to analyse.
+
+
+2. ACCEPTABLE USE AND YOUR RESPONSIBILITY
+
+You are solely responsible for how you use the App and for everything you do
+with its output. You agree that you will:
+- only analyse, unpack, patch, or modify applications that you own, that you
+  have written, or that you have explicit legal permission to process;
+- comply with all laws, regulations, and third-party agreements that apply to
+  you, including copyright, intellectual-property, and anti-circumvention laws,
+  and the terms of service of any software you process;
+- not use the App to infringe copyright, to pirate or crack paid software, to
+  bypass licensing or protection for unlawful purposes, to gain unauthorised
+  access to systems or data, or for any other illegal or malicious activity.
+
+The developers of Alter do not endorse and are not responsible for any unlawful
+or unauthorised use. Responsibility for respecting the rights of software
+authors and publishers rests entirely with you.
+
+
+3. RISK OF DATA LOSS AND SYSTEM CHANGES — READ CAREFULLY
+
+Alter modifies application packages and writes files to device storage. These
+operations are inherently risky. In particular:
+- patching, injecting, re-signing, repackaging, and merging APKs produce
+  modified files that may be incomplete, corrupted, or non-functional, and that
+  may fail to install or may crash on launch;
+- an operation can be interrupted, run out of storage, or fail partway and
+  leave files in an inconsistent state;
+- installing a modified or re-signed app over an existing one can replace or
+  delete that app's data; a signature change can require a full uninstall and
+  wipe its data;
+- dumping and extraction write potentially large files to shared or
+  app-specific storage and may overwrite files that already carry the same
+  name;
+- some features require broad storage permissions (including "All files
+  access") to move results into an open folder.
+
+YOU USE THESE FEATURES AT YOUR OWN RISK. Always keep a separate backup of any
+app, file, or data that matters to you before processing it with Alter. The
+App is not responsible for lost, corrupted, or overwritten files, for apps that
+stop working, or for any consequence that a modified package causes on your
+device or account (including, for example, bans imposed by a service on
+modified clients).
+
+
+4. LICENSE FOR CONTENT GENERATED WITH ALTER
+
+Files generated using Alter may be freely used, modified, distributed, and
+included in personal or commercial projects, subject to this section and to
+section 5.
+
+You may NOT:
+- resell generated files individually or as standalone asset packs, template
+  packs, content libraries, or similar redistribution products;
+- redistribute generated content collections without attribution.
+
+If generated files are redistributed as part of a library, asset collection,
+toolkit, or template package, attribution to Alter must be included in an
+About section, Credits section, documentation, or similar visible place.
+
+Example attribution:
+    "Content generated with Alter"
+
+This section applies only to original content created by Alter. It does NOT
+grant you any right in the applications, code, assets, or metadata that you
+extract, dump, or recover from someone else's software — those remain the
+property of their respective owners and are governed by section 2.
+
+
+5. THIRD-PARTY COMPONENTS
+
+Alter includes third-party open-source software, which may be licensed under
+the MIT License, the Apache License 2.0, or other licenses. Those components
+remain the property of their respective authors, and their licenses apply
+separately. The authors and the licenses are acknowledged in the App's About
+screen, and you agree to respect them.
+
+
+6. NO WARRANTY
+
+The App and all content it generates are provided "AS IS", without warranty of
+any kind, express or implied, including but not limited to the warranties of
+merchantability, fitness for a particular purpose, and non-infringement, and
+any warranty that the App will be error-free, uninterrupted, or safe for a
+given use.
+
+
+7. LIMITATION OF LIABILITY
+
+To the maximum extent permitted by law, in no event shall the authors or
+copyright holders be liable for any claim, damages, or other liability —
+whether in an action of contract, tort, or otherwise, and including direct,
+indirect, incidental, or consequential damages such as loss of data, loss of
+files, device malfunction, or account action — arising from, out of, or in
+connection with the App, the content it generates, or the use of or inability
+to use it.
+
+
+8. ACCEPTANCE
+
+Your use of Alter confirms that you have read, understood, and accepted this
+Agreement, that you are solely responsible for your use of the App, and that
+you accept all of the risks described above.

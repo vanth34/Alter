@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Alter Project channel
+    url: https://t.me/AlterProject
+    about: News, releases, and community discussion.
+  - name: "Developer: RevEx"
+    url: https://t.me/revexlab
+    about: Reach the developer directly.

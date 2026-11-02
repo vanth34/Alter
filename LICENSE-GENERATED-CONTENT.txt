@@ -1,0 +1,26 @@
+Alter Generated Content License
+Copyright (c) 2026 Alter
+
+Files generated using Alter may be freely used, modified,
+distributed, and included in personal or commercial projects.
+
+You may NOT:
+- resell generated files individually or as standalone asset packs, template packs, content libraries, or similar redistribution products;
+- redistribute generated content collections without attribution.
+
+If generated files are redistributed as part of a library,
+asset collection, toolkit, or template package, attribution to
+Alter must be included in an About section, Credits section,
+documentation, or similar visible place.
+
+Example attribution:
+"Content generated with Alter"
+
+This license applies only to original generated content created by Alter.
+
+Alter may include third-party open-source software components
+licensed under their own licenses (including MIT and similar licenses).
+Such components remain the property of their respective authors,
+and their licenses must be respected separately where applicable.
+
+The generated content is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of, or in connection with the generated content or the use or other dealings in the generated content.
