@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="en" data-theme-init>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alter · APK reverse engineering toolkit for Android</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="A modern toolkit for APK modification and reverse engineering. Rootless and ROOT DEX dump, il2cpp dumper, dumper injection, regex manager and Smali in Regex in one Android app.">
+<meta name="theme-color" content="#141118">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Alter">
+<meta property="og:description" content="A modern toolkit for APK modification and reverse engineering.">
+<meta property="og:image" content="https://vanth34.github.io/Alter/assets/og.jpg">
+<meta property="og:url" content="https://vanth34.github.io/Alter/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,1,0&icon_names=arrow_forward,auto_awesome,bolt,check,code,content_copy,dark_mode,deployed_code,download,folder_zip,frame_inspect,home,ink_eraser,language,light_mode,memory,palette,phone_android,regular_expression,security,send,smart_toy,syringe,terminal,widgets&display=block">
+<script>
+  /* theme + language before paint */
+  (function(){
+    var d=document.documentElement, t=null, l=null;
+    try{ t=localStorage.getItem('alter-theme'); l=localStorage.getItem('alter-lang'); }catch(e){}
+    if(t==='light'||t==='dark') d.setAttribute('data-theme',t);
+    if(!l){ l=((navigator.languages&&navigator.languages[0])||navigator.language||'en').toLowerCase().indexOf('ru')===0?'ru':'en'; }
+    d.setAttribute('lang',l);
+  })();
+</script>
+<style>
+/* Layout: a "memory dump" stage — hex-byte hero with a fanned stack of real screens, then a
+   bento of tools, a working Smali→Regex bench, a screen reel and a quiet install strip.
+   Dark-first (the app ships dark), purple from the app's M3 scheme, copper from the "Alt" logo. */
+:root{
+  --bg:#141118;           /* purple-biased near black */
+  --bg-2:#1b1720;
+  --surface:#221d29;
+  --line:#3a3343;
+  --fg:#ece6f3;
+  --fg-2:#b9b0c6;
+  --fg-3:#8a8197;
+  --primary:#cfbcfe;      /* app dark primary */
+  --on-primary:#371e72;
+  --primary-soft:#4f378a;
+  --copper:#d89a76;       /* logo stroke */
+  --copper-soft:#5a3a2a;
+  --ok:#8fd9a8;
+  --glass:rgba(40,33,50,.55);
+  --glass-edge:rgba(255,255,255,.10);
+  --glass-hi:rgba(255,255,255,.16);
+  --shadow:rgba(0,0,0,.55);
+  --hex:#cfbcfe;
+  --hex-op:1;
+  --code-bg:#100d14;
+  --f-display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --f-body:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --r-xl:32px; --r-lg:24px; --r-md:16px; --r-sm:10px;
+  --gut-l:max(16px, env(safe-area-inset-left, 0px));
+  --gut-r:max(16px, env(safe-area-inset-right, 0px));
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#fbf8ff; --bg-2:#f3eefb; --surface:#ffffff; --line:#e1d9ec;
+    --fg:#1d1b20; --fg-2:#4a4453; --fg-3:#7a7385;
+    --primary:#674fa3; --on-primary:#ffffff; --primary-soft:#e9ddff;
+    --copper:#a65a35; --copper-soft:#f6dccd; --ok:#1f7a45;
+    --glass:rgba(255,255,255,.62); --glass-edge:rgba(103,79,163,.16); --glass-hi:rgba(255,255,255,.9);
+    --shadow:rgba(60,40,100,.18); --hex:#674fa3; --hex-op:.5; --code-bg:#f5f1fb;
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#fbf8ff; --bg-2:#f3eefb; --surface:#ffffff; --line:#e1d9ec;
+  --fg:#1d1b20; --fg-2:#4a4453; --fg-3:#7a7385;
+  --primary:#674fa3; --on-primary:#ffffff; --primary-soft:#e9ddff;
+  --copper:#a65a35; --copper-soft:#f6dccd; --ok:#1f7a45;
+  --glass:rgba(255,255,255,.62); --glass-edge:rgba(103,79,163,.16); --glass-hi:rgba(255,255,255,.9);
+  --shadow:rgba(60,40,100,.18); --hex:#674fa3; --hex-op:.5; --code-bg:#f5f1fb;
+  color-scheme:light;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:400 16px/1.6 var(--f-body);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+img{max-width:100%;display:block}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:8px}
+::selection{background:var(--primary);color:var(--on-primary)}
+.ms{font-family:"Material Symbols Rounded";font-weight:500;font-style:normal;font-size:24px;line-height:1;letter-spacing:normal;text-transform:none;white-space:nowrap;direction:ltr;-webkit-font-feature-settings:"liga";font-feature-settings:"liga";display:inline-block;width:1em;overflow:hidden}
+code,.mono{font-family:var(--f-mono);font-size:.9em}
+code,pre,textarea,.bytes,.flow,.rules,.perma,.float-tag,#hex{font-variant-ligatures:none;font-feature-settings:"liga" 0,"calt" 0}
+code{background:color-mix(in oklab,var(--primary) 14%,transparent);padding:.1em .4em;border-radius:6px}
+h1,h2,h3{text-wrap:balance;margin:0}
+p{margin:0}
+
+/* ambient light: two slow blobs behind everything */
+.aura{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.aura i{position:absolute;width:60vmax;height:60vmax;border-radius:50%;filter:blur(90px);opacity:.28}
+.aura i:nth-child(1){background:var(--primary);top:-25vmax;left:-15vmax;animation:drift 26s ease-in-out infinite alternate}
+.aura i:nth-child(2){background:var(--copper);bottom:-30vmax;right:-20vmax;opacity:.16;animation:drift 32s ease-in-out infinite alternate-reverse}
+@keyframes drift{to{transform:translate(12vmax,8vmax) scale(1.15)}}
+
+.wrap{max-width:1200px;margin:0 auto;padding-left:var(--gut-l);padding-right:var(--gut-r)}
+section{padding-block:clamp(64px,10vw,120px)}
+
+/* glass */
+.glass{
+  background:var(--glass);
+  -webkit-backdrop-filter:blur(20px) saturate(170%);backdrop-filter:blur(20px) saturate(170%);
+  border:1px solid var(--glass-edge);
+  box-shadow:inset 0 1px 0 var(--glass-hi),0 18px 50px -22px var(--shadow);
+}
+
+/* ---------- nav ---------- */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:60;background:var(--bg)}
+.nav{position:sticky;top:calc(env(safe-area-inset-top,0px) + 14px);z-index:50;display:flex;justify-content:center;padding-left:var(--gut-l);padding-right:var(--gut-r);pointer-events:none}
+.nav-in{pointer-events:auto;display:flex;align-items:center;gap:4px;padding:6px;border-radius:999px;max-width:100%}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 14px 4px 6px;text-decoration:none;font:600 15px/1 var(--f-display);letter-spacing:.02em}
+.brand img{width:30px;height:30px;border-radius:9px}
+.nav-links{display:flex;gap:2px}
+.nav-links a{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:999px;text-decoration:none;font-weight:500;font-size:14.5px;color:var(--fg-2);transition:background .25s,color .25s}
+.nav-links a .ms{font-size:20px}
+.nav-links a:hover,.nav-links a.on{background:color-mix(in oklab,var(--primary) 18%,transparent);color:var(--fg)}
+.nav-tools{display:flex;gap:2px;margin-left:4px}
+.icon-btn{appearance:none;border:0;background:transparent;color:var(--fg-2);height:38px;min-width:38px;padding:0 10px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;font:600 13px/1 var(--f-body);text-decoration:none;transition:background .2s,color .2s}
+.icon-btn:hover{background:color-mix(in oklab,var(--primary) 18%,transparent);color:var(--fg)}
+.icon-btn .ms{font-size:20px}
+.gh svg{width:19px;height:19px;fill:currentColor}
+
+/* ---------- hero ---------- */
+.hero{position:relative;padding-block:clamp(40px,7vw,90px) clamp(56px,8vw,100px);overflow:hidden}
+#hex{position:absolute;inset:0;width:100%;height:100%;z-index:-1;opacity:var(--hex-op);
+  -webkit-mask-image:radial-gradient(120% 90% at 30% 40%,#000 25%,transparent 75%);mask-image:radial-gradient(120% 90% at 30% 40%,#000 25%,transparent 75%)}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:clamp(24px,4vw,64px);align-items:center}
+.chip{display:inline-flex;align-items:center;gap:10px;padding:7px 14px 7px 8px;border-radius:999px;font-size:13.5px;font-weight:500;color:var(--fg-2);text-decoration:none}
+.chip b{font-family:var(--f-mono);font-weight:600;font-size:12px;letter-spacing:.06em;background:var(--primary);color:var(--on-primary);padding:4px 9px;border-radius:999px}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:ping 2.4s infinite}
+@keyframes ping{0%{box-shadow:0 0 0 0 color-mix(in oklab,var(--ok) 70%,transparent)}70%,100%{box-shadow:0 0 0 10px transparent}}
+.title{font:800 clamp(76px,15vw,184px)/.86 var(--f-display);letter-spacing:-.045em;margin:22px 0 18px;
+  background:linear-gradient(100deg,var(--fg) 0%,var(--fg) 38%,var(--primary) 62%,var(--copper) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  font-variant-ligatures:none;white-space:nowrap}
+.title .s{display:inline-block}
+.tagline{font:600 clamp(18px,2vw,24px)/1.32 var(--f-display);letter-spacing:-.01em;max-width:30ch}
+.lead{color:var(--fg-2);font-size:clamp(16px,1.4vw,18px);max-width:52ch;margin-top:16px}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+.btn{display:inline-flex;align-items:center;gap:10px;height:56px;padding:0 26px 0 22px;border-radius:999px;font:600 16px/1 var(--f-body);text-decoration:none;transition:transform .25s cubic-bezier(.2,.8,.2,1),box-shadow .25s,background .25s}
+.btn .ms{font-size:22px}
+.btn-primary{background:var(--primary);color:var(--on-primary);box-shadow:0 12px 34px -12px color-mix(in oklab,var(--primary) 80%,transparent),inset 0 1px 0 rgba(255,255,255,.35)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 18px 44px -12px color-mix(in oklab,var(--primary) 90%,transparent),inset 0 1px 0 rgba(255,255,255,.35)}
+.btn-ghost{color:var(--fg)}
+.btn-ghost:hover{transform:translateY(-2px)}
+.btn small{font:500 12px/1 var(--f-mono);opacity:.72;margin-left:2px}
+.facts{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:30px;color:var(--fg-3);font-size:14px}
+.facts span{display:inline-flex;align-items:center;gap:8px}
+.facts .ms{font-size:18px;color:var(--copper)}
+.facts b{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
+
+/* phone fan */
+.stage{position:relative;height:clamp(460px,52vw,640px);perspective:1400px}
+.phone{position:absolute;top:50%;left:50%;width:clamp(200px,20vw,268px);aspect-ratio:9/20;border-radius:clamp(30px,3vw,40px);padding:7px;
+  background:linear-gradient(150deg,#3b3446,#17131c 45%,#2a2431);box-shadow:0 40px 80px -30px rgba(0,0,0,.7),inset 0 0 0 1px rgba(255,255,255,.12);
+  transform-style:preserve-3d;transition:transform .9s cubic-bezier(.2,.8,.2,1)}
+.phone img{width:100%;height:100%;object-fit:cover;border-radius:calc(clamp(30px,3vw,40px) - 7px)}
+.phone::after{content:"";position:absolute;inset:7px;border-radius:calc(clamp(30px,3vw,40px) - 7px);
+  background:linear-gradient(115deg,rgba(255,255,255,.16) 0%,transparent 28%,transparent 70%,rgba(255,255,255,.06) 100%);pointer-events:none}
+.phone.p0{z-index:3;transform:translate(-50%,-50%) rotateY(var(--ry,0deg)) rotateX(var(--rx,0deg))}
+.phone.p1{z-index:2;transform:translate(-112%,-46%) rotate(-9deg) scale(.86);filter:brightness(.72)}
+.phone.p2{z-index:1;transform:translate(12%,-46%) rotate(9deg) scale(.86);filter:brightness(.72)}
+.stage .halo{position:absolute;left:50%;top:50%;width:70%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;
+  background:radial-gradient(closest-side,color-mix(in oklab,var(--primary) 45%,transparent),transparent);filter:blur(30px);opacity:.7}
+.float-tag{position:absolute;z-index:4;padding:10px 14px;border-radius:16px;font:500 12.5px/1.35 var(--f-mono);color:var(--fg-2);white-space:nowrap}
+.float-tag b{display:block;color:var(--fg);font:600 13px/1.3 var(--f-body)}
+.float-tag.t1{left:2%;top:12%;animation:bob 6s ease-in-out infinite}
+.float-tag.t2{right:0;bottom:14%;animation:bob 7s ease-in-out infinite reverse}
+.float-tag .k{color:var(--copper)}
+@keyframes bob{50%{transform:translateY(-10px)}}
+
+/* ---------- section heads ---------- */
+.eyebrow{font:600 12px/1 var(--f-mono);letter-spacing:.16em;text-transform:uppercase;color:var(--copper);display:flex;align-items:center;gap:10px}
+.eyebrow::before{content:"";width:22px;height:1px;background:currentColor}
+.h2{font:700 clamp(27px,4.6vw,56px)/1.06 var(--f-display);letter-spacing:-.03em;margin-top:16px;overflow-wrap:break-word;hyphens:auto}
+.sub{color:var(--fg-2);max-width:60ch;margin-top:16px;font-size:17px}
+.head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:24px 40px;margin-bottom:40px}
+.head > div{min-width:0}
+
+/* dumper picker */
+.picker{padding:18px;border-radius:var(--r-lg);max-width:460px;width:100%}
+.picker-q{font:600 14px/1.3 var(--f-body);display:flex;gap:8px;align-items:center;color:var(--fg)}
+.picker-q .ms{color:var(--primary);font-size:20px}
+.picker-opts{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.picker-opts button{appearance:none;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--fg-2);font:500 13.5px/1.2 var(--f-body);padding:8px 12px;border-radius:999px;transition:all .2s}
+.picker-opts button:hover{color:var(--fg);border-color:var(--fg-3)}
+.picker-opts button[aria-pressed="true"]{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.picker-a{margin-top:12px;font-size:14px;color:var(--fg-2);min-height:2.6em}
+.picker-a b{color:var(--fg)}
+
+/* ---------- bento ---------- */
+.bento{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+.tile{position:relative;grid-column:span 6;border-radius:var(--r-xl);padding:clamp(22px,2.6vw,32px);background:var(--bg-2);border:1px solid var(--line);overflow:hidden;min-width:0;
+  display:flex;flex-direction:column;gap:14px;transition:border-color .35s,box-shadow .35s,transform .35s}
+.tile::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .4s;
+  background:radial-gradient(420px circle at var(--mx,50%) var(--my,0%),color-mix(in oklab,var(--primary) 16%,transparent),transparent 65%)}
+.tile:hover::before{opacity:1}
+.tile.pick{border-color:var(--primary);box-shadow:0 0 0 1px var(--primary),0 24px 60px -28px color-mix(in oklab,var(--primary) 80%,transparent)}
+.tile.pick .t-ic{background:var(--primary);color:var(--on-primary)}
+.t-top{display:flex;align-items:center;gap:14px}
+.t-ic{width:48px;height:48px;flex:none;display:grid;place-items:center;border-radius:16px;background:var(--primary-soft);color:var(--primary);transition:background .3s,color .3s}
+.tile.copper .t-ic{background:var(--copper-soft);color:var(--copper)}
+.t-tag{margin-left:auto;font:600 11px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--fg-3);border:1px solid var(--line);padding:6px 9px;border-radius:999px;white-space:nowrap}
+.tile h3{font:600 clamp(20px,2vw,25px)/1.15 var(--f-display);letter-spacing:-.02em}
+.tile p{color:var(--fg-2);font-size:15.5px}
+.tile ul{margin:0;padding:0;list-style:none;display:grid;gap:9px;font-size:15px;color:var(--fg-2)}
+.tile li{display:grid;grid-template-columns:18px minmax(0,1fr);gap:10px}
+.tile li::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--copper);margin-top:.62em;transform:rotate(45deg)}
+.tile li b{color:var(--fg);font-weight:600}
+.tile .more{margin-top:auto;padding-top:6px;display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:14px;color:var(--primary);text-decoration:none;width:max-content}
+.tile .more .ms{font-size:18px;transition:transform .25s}
+.tile .more:hover .ms{transform:translateX(4px)}
+.w7{grid-column:span 7}.w5{grid-column:span 5}.w4{grid-column:span 4}.w12{grid-column:span 12}
+
+/* tile visuals */
+.bytes{font:500 13px/1.75 var(--f-mono);color:var(--fg-3);background:var(--code-bg);border:1px solid var(--line);border-radius:var(--r-md);padding:14px 16px;overflow:hidden;white-space:nowrap}
+.bytes .row{display:flex;gap:14px}
+.bytes .off{color:color-mix(in oklab,var(--fg-3) 70%,transparent)}
+.bytes .m{color:var(--copper)}
+.bytes .asc{margin-left:auto;color:var(--primary)}
+.scan{position:relative;height:10px;border-radius:99px;background:var(--code-bg);border:1px solid var(--line);overflow:hidden}
+.scan::after{content:"";position:absolute;inset:0;width:30%;background:linear-gradient(90deg,transparent,var(--primary),transparent);animation:scan 2.6s ease-in-out infinite}
+@keyframes scan{from{transform:translateX(-100%)}to{transform:translateX(340%)}}
+.scan-l{display:flex;justify-content:space-between;font:500 12px/1 var(--f-mono);color:var(--fg-3);margin-top:8px}
+.code{font:400 12.5px/1.7 var(--f-mono);background:var(--code-bg);border:1px solid var(--line);border-radius:var(--r-md);padding:14px 16px;overflow-x:auto;white-space:pre;color:var(--fg-2);margin:0}
+.code .c{color:var(--fg-3)}.code .k{color:var(--primary)}.code .n{color:var(--copper)}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.flow span{font:500 13px/1 var(--f-mono);padding:9px 12px;border-radius:12px;background:var(--code-bg);border:1px solid var(--line);color:var(--fg-2);white-space:nowrap}
+.flow span.hot{border-color:var(--copper);color:var(--copper)}
+.flow i{font-style:normal;color:var(--fg-3)}
+.styles{display:flex;flex-wrap:wrap;gap:8px}
+.styles span{font-size:13px;padding:7px 11px;border-radius:10px;border:1px solid var(--line);color:var(--fg-2)}
+.styles span:nth-child(1){border-radius:999px}
+.styles span:nth-child(3){border-radius:14px;background:color-mix(in oklab,var(--fg) 8%,transparent)}
+.appear{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+.appear div{display:flex;flex-direction:column;gap:8px;font-size:15px;color:var(--fg-2);min-width:0}
+.appear .ms{color:var(--primary)}
+.mini-glass{position:relative;height:64px;border-radius:999px;margin-top:4px;display:flex;align-items:center;justify-content:space-around;max-width:340px}
+.mini-glass span{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11.5px;color:var(--fg-2);padding:6px 26px;border-radius:999px}
+.mini-glass .ms{font-size:22px;width:1em}
+.mini-glass span.on{background:color-mix(in oklab,var(--fg) 12%,transparent);color:var(--primary)}
+.appear-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:28px;align-items:center}
+
+/* ---------- smali bench ---------- */
+.bench{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.pane{border-radius:var(--r-lg);border:1px solid var(--line);background:var(--code-bg);display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.pane-h{display:flex;align-items:center;gap:10px;padding:12px 14px 12px 18px;border-bottom:1px solid var(--line);font:600 12px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--fg-3)}
+.pane-h .ms{font-size:18px;color:var(--copper)}
+.pane-h .icon-btn{margin-left:auto;height:32px;font-size:12.5px;text-transform:none;letter-spacing:0;border:1px solid var(--line)}
+textarea#smali{flex:1;min-height:250px;resize:vertical;border:0;outline:0;background:transparent;color:var(--fg);font:400 13.5px/1.75 var(--f-mono);padding:16px 18px;white-space:pre;overflow:auto;tab-size:4}
+#rx{flex:1;min-height:250px;margin:0;padding:16px 18px;font:400 13.5px/1.75 var(--f-mono);color:var(--fg-2);white-space:pre-wrap;word-break:break-all;overflow:auto}
+#rx .r{color:var(--primary);font-weight:600}
+#rx .l{color:var(--copper);font-weight:600}
+#rx .e{color:var(--fg-3)}
+#rx .s{color:var(--ok)}
+.proof{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px 18px;align-items:start;padding:18px 20px;border-radius:var(--r-lg)}
+.proof .badge{display:inline-flex;align-items:center;gap:8px;font:600 13px/1 var(--f-body);padding:9px 13px;border-radius:999px;background:color-mix(in oklab,var(--ok) 18%,transparent);color:var(--ok);white-space:nowrap}
+.proof .badge.bad{background:color-mix(in oklab,var(--copper) 18%,transparent);color:var(--copper)}
+.proof .badge .ms{font-size:18px}
+.proof p{color:var(--fg-2);font-size:14.5px}
+.proof pre{margin:8px 0 0;font:400 12.5px/1.65 var(--f-mono);color:var(--fg-3);white-space:pre;overflow-x:auto}
+.proof pre mark{background:transparent;color:var(--copper);font-weight:600}
+.rules{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+.rules span{font:500 12.5px/1 var(--f-mono);padding:8px 11px;border-radius:10px;border:1px solid var(--line);color:var(--fg-2)}
+.rules span b{color:var(--primary);font-weight:600}
+
+/* ---------- screens reel ---------- */
+.reel{display:flex;gap:22px;overflow-x:auto;scroll-snap-type:x mandatory;padding:10px var(--gut-r) 34px var(--gut-l);
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;-webkit-overflow-scrolling:touch}
+.reel-wrap{max-width:1200px;margin:0 auto}
+.shot{flex:none;width:clamp(200px,22vw,250px);scroll-snap-align:center;display:flex;flex-direction:column;gap:14px;margin:0}
+.shot .phone{position:relative;top:auto;left:auto;width:100%;transform:none;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.shot:hover .phone{transform:translateY(-8px) rotate(-1.5deg)}
+.shot figcaption{font:600 14.5px/1.3 var(--f-body);display:flex;gap:10px;align-items:baseline}
+.shot figcaption span{font:500 12px/1 var(--f-mono);color:var(--copper)}
+
+/* ---------- install ---------- */
+.install{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:clamp(24px,5vw,72px);align-items:start}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:44px minmax(0,1fr);gap:16px;align-items:center;padding:18px 20px;border-radius:var(--r-lg);background:var(--bg-2);border:1px solid var(--line);color:var(--fg-2)}
+.steps li::before{content:counter(s);width:44px;height:44px;display:grid;place-items:center;border-radius:14px;background:var(--primary-soft);color:var(--primary);font:700 18px/1 var(--f-display)}
+.steps li b{color:var(--fg)}
+.req{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:28px}
+.req div{padding:16px;border-radius:var(--r-md);border:1px solid var(--line);min-width:0}
+.req small{display:block;font:600 11px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--fg-3);margin-bottom:8px}
+.req b{font:600 17px/1.2 var(--f-display);letter-spacing:-.01em}
+.perma{display:flex;align-items:center;gap:10px;margin-top:22px;padding:8px 8px 8px 16px;border-radius:16px;border:1px dashed var(--line);font:500 13px/1.4 var(--f-mono);color:var(--fg-2);min-width:0}
+.perma span{flex:1;min-width:0;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+.perma .icon-btn{border:1px solid var(--line);flex:none}
+.notes{margin-top:18px;color:var(--fg-3);font-size:14.5px}
+.notes a{color:var(--primary)}
+
+/* ---------- credits ---------- */
+.credits{display:flex;flex-wrap:wrap;gap:10px}
+.credits a{flex:0 1 auto;max-width:100%;display:flex;flex-direction:column;gap:4px;padding:16px 18px;border-radius:var(--r-md);border:1px solid var(--line);text-decoration:none;transition:border-color .25s,background .25s;min-width:0}
+.credits a:hover{border-color:var(--primary);background:color-mix(in oklab,var(--primary) 7%,transparent)}
+.credits b{font:600 16px/1.2 var(--f-display);letter-spacing:-.01em}
+.credits span{font:500 12.5px/1.3 var(--f-mono);color:var(--fg-3)}
+
+/* ---------- footer ---------- */
+footer{padding-block:56px calc(56px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
+.foot{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:32px;align-items:start}
+.foot .big{font:800 clamp(40px,7vw,80px)/.9 var(--f-display);letter-spacing:-.04em;color:var(--fg)}
+.foot .big em{font-style:normal;color:var(--copper)}
+.foot p{color:var(--fg-3);font-size:13.5px;max-width:62ch;margin-top:16px}
+.foot nav{display:grid;gap:10px;justify-items:start}
+.foot nav a{display:inline-flex;gap:10px;align-items:center;text-decoration:none;color:var(--fg-2);font-weight:500}
+.foot nav a:hover{color:var(--primary)}
+.foot nav .ms{font-size:20px;color:var(--primary)}
+.copy{margin-top:34px;color:var(--fg-3);font:500 12.5px/1 var(--f-mono)}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,30px);opacity:0;z-index:80;padding:12px 18px;border-radius:999px;font-weight:600;font-size:14px;transition:all .35s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.toast.show{transform:translate(-50%,0);opacity:1}
+
+/* reveal: visible at rest, gentle lift when JS marks it */
+.rv{transition:transform .9s cubic-bezier(.2,.8,.2,1),opacity .9s}
+.js .rv.pre{transform:translateY(26px);opacity:.001}
+
+/* ---------- responsive ---------- */
+@media (max-width:1020px){
+  .nav-links a span.t{display:none}
+  .nav-links a{padding:9px 11px}
+  .hero-grid{grid-template-columns:minmax(0,1fr)}
+  .stage{height:clamp(420px,95vw,560px);margin-top:8px}
+  .phone{width:clamp(180px,40vw,250px)}
+  .w7,.w5,.w4,.tile{grid-column:span 6}
+  .w12{grid-column:span 12}
+  .appear{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .appear-row{grid-template-columns:minmax(0,1fr)}
+  .install{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:720px){
+  .nav{top:auto;bottom:0;position:fixed;left:0;right:0;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+  .nav-in{width:100%;max-width:430px;justify-content:space-between}
+  .brand span,.nav-tools .gh{display:none}
+  .brand{padding:4px}
+  .nav-links{flex:1;justify-content:space-around}
+  .tile,.w7,.w5,.w4,.w12{grid-column:span 12}
+  .bench{grid-template-columns:minmax(0,1fr)}
+  .proof{grid-template-columns:minmax(0,1fr)}
+  .req{grid-template-columns:minmax(0,1fr)}
+  .foot{grid-template-columns:minmax(0,1fr)}
+  .float-tag.t1{left:0;top:4%}
+  .float-tag.t2{right:0;bottom:6%}
+  footer{padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))}
+  .toast{bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+  .facts{gap:8px 16px}
+  #hex{opacity:calc(var(--hex-op) * .45);-webkit-mask-image:radial-gradient(90% 60% at 80% 20%,#000 10%,transparent 70%);mask-image:radial-gradient(90% 60% at 80% 20%,#000 10%,transparent 70%)}
+}
+@media (max-width:420px){
+  .phone.p1{transform:translate(-100%,-46%) rotate(-9deg) scale(.8)}
+  .phone.p2{transform:translate(0%,-46%) rotate(9deg) scale(.8)}
+  .btn{height:52px;padding:0 20px 0 18px;font-size:15px}
+  .appear{grid-template-columns:minmax(0,1fr)}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  html{scroll-behavior:auto}
+  .js .rv.pre{transform:none;opacity:1}
+}
+</style>
+</head>
+<body>
+<div class="aura" aria-hidden="true"><i></i><i></i></div>
+
+<header class="nav">
+  <div class="nav-in glass">
+    <a class="brand" href="#top" aria-label="Alter"><img src="assets/icon-192.png" alt="" width="30" height="30"><span>Alter</span></a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#tools"><span class="ms">widgets</span><span class="t" data-i18n="nav.tools">Tools</span></a>
+      <a href="#bench"><span class="ms">regular_expression</span><span class="t" data-i18n="nav.bench">Smali → Regex</span></a>
+      <a href="#screens"><span class="ms">phone_android</span><span class="t" data-i18n="nav.screens">Screens</span></a>
+      <a href="#install"><span class="ms">download</span><span class="t" data-i18n="nav.install">Install</span></a>
+    </nav>
+    <div class="nav-tools">
+      <button class="icon-btn" id="langBtn" type="button" aria-label="Language"><span class="ms">language</span><span id="langLbl">RU</span></button>
+      <button class="icon-btn" id="themeBtn" type="button" aria-label="Theme"><span class="ms" id="themeIc">light_mode</span></button>
+      <a class="icon-btn gh" href="https://github.com/vanth34/Alter" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg></a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+<!-- ================= HERO ================= -->
+<section class="hero">
+  <canvas id="hex" aria-hidden="true"></canvas>
+  <div class="wrap hero-grid">
+    <div>
+      <a class="chip glass" id="relChip" href="https://github.com/vanth34/Alter/releases/latest" target="_blank" rel="noopener">
+        <b id="relTag">2026.11.02</b><span class="dot" aria-hidden="true"></span><span id="relName" data-i18n="hero.latest">Azoth · latest release</span>
+      </a>
+      <h1 class="title" id="title" aria-label="Alter">Alter</h1>
+      <p class="tagline" data-i18n="hero.tagline">A modern toolkit for APK modification and reverse engineering</p>
+      <p class="lead" data-i18n="hero.lead">Alter brings your APK tools together in a single app. It is built for modders and reverse engineers who need a convenient way to analyze, patch and modify apps. Everything you need in one place, without extra tools or complicated setup.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/vanth34/Alter/releases/latest/download/app-release.apk"><span class="ms">download</span><span data-i18n="hero.dl">Download APK</span></a>
+        <a class="btn btn-ghost glass" href="https://t.me/AlterProject" target="_blank" rel="noopener"><span class="ms">send</span>Telegram</a>
+      </div>
+      <div class="facts">
+        <span><span class="ms">phone_android</span><b>Android 8.0+</b></span>
+        <span><span class="ms">security</span><b data-i18n="hero.root">Root optional</b></span>
+        <span><span class="ms">memory</span><b>ARM</b></span>
+        <span id="dlFact" hidden><span class="ms">download</span><b id="dlCount">0</b><span data-i18n="hero.downloads">downloads</span></span>
+      </div>
+    </div>
+    <div class="stage" id="stage" aria-hidden="true">
+      <div class="halo"></div>
+      <div class="phone p1"><img src="assets/screens/dex-dumper.webp" alt="" loading="eager" width="540" height="1200"></div>
+      <div class="phone p2"><img src="assets/screens/il2cpp-dump.webp" alt="" loading="eager" width="540" height="1200"></div>
+      <div class="phone p0" id="heroPhone"><img src="assets/screens/home.webp" alt="" loading="eager" width="540" height="1200"></div>
+      <div class="float-tag glass t1"><b>classes.dex</b><span class="k">64 65 78 0A</span> 30 33 35 00</div>
+      <div class="float-tag glass t2"><b>dump.cs</b>// RVA: <span class="k">0x1A2B3C0</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= TOOLS ================= -->
+<section id="tools">
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <p class="eyebrow" data-i18n="tools.eyebrow">Toolkit</p>
+        <h2 class="h2" data-i18n="tools.h">Everything you used to do on a PC</h2>
+        <p class="sub" data-i18n="tools.sub">Alter is an all-in-one Android app for reverse engineers and modders. It brings together the tasks you normally juggle across several tools, often on a PC.</p>
+      </div>
+      <div class="picker glass rv" role="group" aria-labelledby="pickQ">
+        <p class="picker-q" id="pickQ"><span class="ms">auto_awesome</span><span data-i18n="pick.q">Which dumper should I use?</span></p>
+        <div class="picker-opts" id="pickOpts">
+          <button type="button" data-pick="rootless" aria-pressed="true" data-i18n="pick.o1">Regular app</button>
+          <button type="button" data-pick="root" aria-pressed="false" data-i18n="pick.o2">Detects the sandbox, I have root</button>
+          <button type="button" data-pick="il2cpp" aria-pressed="false" data-i18n="pick.o3">Unity game</button>
+          <button type="button" data-pick="inject" aria-pressed="false" data-i18n="pick.o4">Nothing else worked</button>
+        </div>
+        <p class="picker-a" id="pickA" aria-live="polite"></p>
+      </div>
+    </div>
+
+    <div class="bento">
+      <!-- Rootless -->
+      <article class="tile w7 rv pick" data-tool="rootless">
+        <div class="t-top"><span class="t-ic ms">deployed_code</span><span class="t-tag" data-i18n="tag.noroot">No root</span></div>
+        <h3 data-i18n="rootless.h">Rootless DEX dump</h3>
+        <p data-i18n="rootless.p">Extract DEX from packed and protected apps without root.</p>
+        <ul>
+          <li><span data-i18n="rootless.l1"><b>Sandbox:</b> the app runs inside a BlackDex sandbox and its DEX is taken straight from memory. The original app is not changed.</span></li>
+          <li><span data-i18n="rootless.l2"><b>Deep unpacking:</b> puts method bodies removed by the packer back into the DEX, including on Android 12+.</span></li>
+          <li><span data-i18n="rootless.l3"><b>Hook dump and auto call</b> for packers that load their code later.</span></li>
+          <li><span data-i18n="rootless.l4"><b>32-bit targets</b> through a separate helper app.</span></li>
+        </ul>
+        <div class="bytes" aria-hidden="true">
+          <div class="row"><span class="off">00000000</span><span><span class="m">64 65 78 0A 30 33 35 00</span> 4F A1 C2 09</span><span class="asc">dex.035.</span></div>
+          <div class="row"><span class="off">00000010</span><span>E3 9B 12 7D 54 0C 88 3A 70 00 00 00</span><span class="asc">p...</span></div>
+        </div>
+        <a class="more" href="https://github.com/vanth34/Alter/blob/main/docs/features/dumpers.md#rootless-dex-dump" data-href-ru="https://github.com/vanth34/Alter/blob/main/docs/ru/features/dumpers.md#дамп-dex-без-root" target="_blank" rel="noopener"><span data-i18n="more">Details</span><span class="ms">arrow_forward</span></a>
+      </article>
+
+      <!-- Root -->
+      <article class="tile w5 rv copper" data-tool="root">
+        <div class="t-top"><span class="t-ic ms">bolt</span><span class="t-tag">Root · arm64</span></div>
+        <h3 data-i18n="root.h">ROOT DEX dump</h3>
+        <p data-i18n="root.p">With root, Alter restarts the real app and collects every DEX it has loaded. <b>God Dump</b> mode scans ART memory for <code>DexFile</code> objects and rebuilds hidden DEX that an ordinary dump can't see.</p>
+        <div aria-hidden="true">
+          <div class="scan"></div>
+          <div class="scan-l"><span>ART heap</span><span>God Dump</span></div>
+        </div>
+        <pre class="code" aria-hidden="true"><span class="c">// God Dump</span>
+DexFile <span class="k">@0x7b3c1a2000</span>  classes.dex
+DexFile <span class="k">@0x7b3c4f8000</span>  classes2.dex
+DexFile <span class="k">@0x7b40012000</span>  <span class="n">hidden.dex</span></pre>
+        <a class="more" href="https://github.com/vanth34/Alter/blob/main/docs/features/dumpers.md#root-dex-dump" data-href-ru="https://github.com/vanth34/Alter/blob/main/docs/ru/features/dumpers.md#root-дамп-dex" target="_blank" rel="noopener"><span data-i18n="more">Details</span><span class="ms">arrow_forward</span></a>
+      </article>
+
+      <!-- il2cpp -->
+      <article class="tile w5 rv" data-tool="il2cpp">
+        <div class="t-top"><span class="t-ic ms">frame_inspect</span><span class="t-tag">Unity</span></div>
+        <h3 data-i18n="il2cpp.h">il2cpp dumper</h3>
+        <p data-i18n="il2cpp.p">Get <code>dump.cs</code> from Unity games, with classes, fields, offsets and method addresses.</p>
+        <ul>
+          <li><span data-i18n="il2cpp.l1"><b>Static mode:</b> reads <code>libil2cpp.so</code> and <code>global-metadata.dat</code> from an installed game or an <code>.apk</code>, <code>.apks</code>, <code>.xapk</code> or <code>.apkm</code> file. The game does not need to run.</span></li>
+          <li><span data-i18n="il2cpp.l2"><b>Disassembler scripts:</b> ready-to-run scripts for IDA Pro, Ghidra and other popular disassemblers are saved next to <code>dump.cs</code>.</span></li>
+        </ul>
+        <pre class="code" aria-label="dump.cs"><span class="c">// dump.cs</span>
+<span class="k">public class</span> <span class="n">PlayerController</span> : MonoBehaviour
+{
+    <span class="k">private float</span> speed; <span class="c">// 0x18</span>
+    <span class="c">// RVA: 0x1A2B3C0 Offset: 0x1A2B3C0</span>
+    <span class="k">public void</span> <span class="n">Jump</span>() { }
+}</pre>
+        <a class="more" href="https://github.com/vanth34/Alter/blob/main/docs/features/dumpers.md#il2cpp-dumper" data-href-ru="https://github.com/vanth34/Alter/blob/main/docs/ru/features/dumpers.md#дампер-il2cpp" target="_blank" rel="noopener"><span data-i18n="more">Details</span><span class="ms">arrow_forward</span></a>
+      </article>
+
+      <!-- Inject -->
+      <article class="tile w7 rv copper" data-tool="inject">
+        <div class="t-top"><span class="t-ic ms">syringe</span><span class="t-tag" data-i18n="tag.onetap">One tap</span></div>
+        <h3 data-i18n="inject.h">Native dumper injection</h3>
+        <p data-i18n="inject.p">When the sandbox or the static dump can't cope, inject a dumper into the APK in a single tap, with no manual <code>smali</code> edits and no build setup. Install the patched APK, run it, and the app dumps itself.</p>
+        <div class="flow" aria-hidden="true">
+          <span>.apks</span><i>→</i><span>merge</span><i>→</i><span class="hot">+ dumper</span><i>→</i><span>sign</span><i>→</i><span>install</span><i>→</i><span class="hot">dump</span>
+        </div>
+        <ul>
+          <li><span data-i18n="inject.l1"><b>il2cpp dumper:</b> dumps IL2CPP classes, methods and fields from a running Unity app.</span></li>
+          <li><span data-i18n="inject.l2"><b>dex dumper:</b> extracts DEX files from a running app's memory.</span></li>
+          <li><span data-i18n="inject.l3">Split APKs are merged into one, and both ARM architectures are included.</span></li>
+          <li><span data-i18n="inject.l4"><b>Re-sign</b> the patched APK or keep the original signature.</span></li>
+        </ul>
+        <a class="more" href="https://github.com/vanth34/Alter/blob/main/docs/features/dumpers.md#dumper-injection" data-href-ru="https://github.com/vanth34/Alter/blob/main/docs/ru/features/dumpers.md#внедрение-дамперов" target="_blank" rel="noopener"><span data-i18n="more">Details</span><span class="ms">arrow_forward</span></a>
+      </article>
+
+      <!-- Regex manager -->
+      <article class="tile w4 rv">
+        <div class="t-top"><span class="t-ic ms">folder_zip</span></div>
+        <h3 data-i18n="regex.h">Regex Manager</h3>
+        <p data-i18n="regex.p">An organized, searchable library for the regular expressions you rely on while modding.</p>
+        <ul>
+          <li><span data-i18n="regex.l1"><b>Your own patterns</b> in named folders by purpose.</span></li>
+          <li><span data-i18n="regex.l2"><b>Syntax highlighting,</b> so mistakes stand out.</span></li>
+          <li><span data-i18n="regex.l3"><b>Backup and import</b> as a <code>.zip</code> of <code>JSON</code> files. Import only adds, it never deletes.</span></li>
+        </ul>
+        <a class="more" href="https://github.com/vanth34/Alter/blob/main/docs/features/regex-manager.md" data-href-ru="https://github.com/vanth34/Alter/blob/main/docs/ru/features/regex-manager.md" target="_blank" rel="noopener"><span data-i18n="more">Details</span><span class="ms">arrow_forward</span></a>
+      </article>
+
+      <!-- Smali in regex -->
+      <article class="tile w4 rv copper">
+        <div class="t-top"><span class="t-ic ms">regular_expression</span></div>
+        <h3>Smali in Regex</h3>
+        <p data-i18n="s2r.p">Paste a smali fragment and get a regex that still matches after the app is rebuilt.</p>
+        <pre class="code" aria-hidden="true"><span class="c">v0, p1</span>      → <span class="k">[vp]\d+</span>
+<span class="c">:cond_1a</span>    → <span class="n">:cond_[A-Za-z0-9]+</span></pre>
+        <a class="more" href="#bench"><span data-i18n="s2r.try">Try it right here</span><span class="ms">arrow_forward</span></a>
+      </article>
+
+      <!-- Alert dialogs -->
+      <article class="tile w4 rv">
+        <div class="t-top"><span class="t-ic ms">ink_eraser</span></div>
+        <h3 data-i18n="dlg.h">Alert Dialog Generator</h3>
+        <p data-i18n="dlg.p">Generate ready-to-use <b>Smali</b> for alert dialogs straight from a form. Pick a style, preview it, and Alter builds a <code>classes.dex</code> and the one-line call to paste into your project.</p>
+        <div class="styles" aria-hidden="true"><span>Rounded</span><span>Material 3</span><span>iOS</span></div>
+        <a class="more" href="https://github.com/vanth34/Alter/blob/main/docs/features/alert-dialogs.md" data-href-ru="https://github.com/vanth34/Alter/blob/main/docs/ru/features/alert-dialogs.md" target="_blank" rel="noopener"><span data-i18n="more">Details</span><span class="ms">arrow_forward</span></a>
+      </article>
+
+      <!-- Appearance -->
+      <article class="tile w12 rv">
+        <div class="appear-row">
+          <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+            <div class="t-top"><span class="t-ic ms">palette</span></div>
+            <h3 data-i18n="look.h">Looks like it belongs on your phone</h3>
+            <div class="mini-glass glass" aria-hidden="true">
+              <span class="on"><span class="ms">home</span>Home</span>
+              <span><span class="ms">code</span>Regex</span>
+            </div>
+          </div>
+          <div class="appear">
+            <div><span class="ms">palette</span><span data-i18n="look.l1">Material 3 with Monet dynamic colours, light and dark themes.</span></div>
+            <div><span class="ms">auto_awesome</span><span data-i18n="look.l2">A floating bar with a Liquid Glass effect whose quality adapts to the device.</span></div>
+            <div><span class="ms">language</span><span data-i18n="look.l3">The interface is translated into many languages.</span></div>
+            <div><span class="ms">download</span><span data-i18n="look.l4">Built-in update check.</span></div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SMALI BENCH ================= -->
+<section id="bench" style="padding-top:0">
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <p class="eyebrow" data-i18n="bench.eyebrow">Live demo</p>
+        <h2 class="h2" data-i18n="bench.h">Smali in Regex, right in your browser</h2>
+        <p class="sub" data-i18n="bench.sub">The same conversion rules the app uses. Edit the smali and watch the pattern update. Below, the pattern is tested against the same code after a rebuild.</p>
+      </div>
+    </div>
+    <div class="bench rv">
+      <div class="pane">
+        <div class="pane-h"><span class="ms">terminal</span>smali<button class="icon-btn" id="resetBtn" type="button" data-i18n="bench.reset">Sample</button></div>
+        <textarea id="smali" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Smali"></textarea>
+      </div>
+      <div class="pane">
+        <div class="pane-h"><span class="ms">regular_expression</span>regex<button class="icon-btn" id="copyRx" type="button"><span class="ms">content_copy</span><span data-i18n="bench.copy">Copy</span></button></div>
+        <pre id="rx" aria-live="polite"></pre>
+      </div>
+      <div class="proof glass">
+        <span class="badge" id="proofBadge"><span class="ms">check</span><span id="proofTxt">match</span></span>
+        <div style="min-width:0">
+          <p data-i18n="bench.proof">The same method after a rebuild: different registers and labels. A hand-written search would miss it.</p>
+          <pre id="rebuilt"></pre>
+        </div>
+      </div>
+    </div>
+    <div class="rules" aria-label="Rules">
+      <span><b>[ ] ( ) { } \ $ ^ | + * ? . "</b> → \…</span>
+      <span>v0, p1 → <b>[vp]\d+</b></span>
+      <span>4 spaces → <b>\s{4}</b></span>
+      <span>⏎ → <b>\n</b></span>
+      <span>:cond_ / :goto_ → <b>[A-Za-z0-9]+</b></span>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SCREENS ================= -->
+<section id="screens" style="padding-top:0">
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <p class="eyebrow" data-i18n="screens.eyebrow">Screens</p>
+        <h2 class="h2" data-i18n="screens.h">One minimal Material 3 interface</h2>
+      </div>
+    </div>
+  </div>
+  <div class="reel-wrap">
+    <div class="reel" tabindex="0" aria-label="Screenshots">
+      <figure class="shot"><div class="phone"><img src="assets/screens/home.webp" alt="Home" loading="lazy" width="540" height="1200"></div><figcaption><span>01</span><b data-i18n="sc.home">Home</b></figcaption></figure>
+      <figure class="shot"><div class="phone"><img src="assets/screens/dex-dumper.webp" alt="Rootless DEX dump" loading="lazy" width="540" height="1200"></div><figcaption><span>02</span><b data-i18n="sc.dex">Rootless DEX dump</b></figcaption></figure>
+      <figure class="shot"><div class="phone"><img src="assets/screens/dex-dumper-root.webp" alt="ROOT DEX dump" loading="lazy" width="540" height="1200"></div><figcaption><span>03</span><b data-i18n="sc.root">ROOT DEX dump</b></figcaption></figure>
+      <figure class="shot"><div class="phone"><img src="assets/screens/il2cpp-dump.webp" alt="il2cpp dumper" loading="lazy" width="540" height="1200"></div><figcaption><span>04</span><b data-i18n="sc.il2cpp">il2cpp dumper</b></figcaption></figure>
+      <figure class="shot"><div class="phone"><img src="assets/screens/regex.webp" alt="Regex Manager" loading="lazy" width="540" height="1200"></div><figcaption><span>05</span><b data-i18n="sc.regex">Regex Manager</b></figcaption></figure>
+      <figure class="shot"><div class="phone"><img src="assets/screens/smali-to-regex.webp" alt="Smali in Regex" loading="lazy" width="540" height="1200"></div><figcaption><span>06</span><b>Smali in Regex</b></figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- ================= INSTALL ================= -->
+<section id="install" style="padding-top:0">
+  <div class="wrap install">
+    <div>
+      <p class="eyebrow" data-i18n="inst.eyebrow">Installation</p>
+      <h2 class="h2" data-i18n="inst.h">Three steps, no PC</h2>
+      <div class="req">
+        <div><small>Android</small><b>8.0+ · API 26</b></div>
+        <div><small>CPU</small><b>ARM</b></div>
+        <div><small>Root</small><b data-i18n="inst.root">Not required</b></div>
+      </div>
+    </div>
+    <div>
+      <ol class="steps">
+        <li><span data-i18n="inst.s1">Tap <b>Download APK</b> at the top: the button always serves the latest version.</span></li>
+        <li><span data-i18n="inst.s2">Open the downloaded <code>app-release.apk</code>.</span></li>
+        <li><span data-i18n="inst.s3">Allow installs from your browser or file manager if Android asks.</span></li>
+      </ol>
+      <div class="perma">
+        <span id="permaTxt">github.com/vanth34/Alter/releases/latest/download/app-release.apk</span>
+        <button class="icon-btn" id="copyPerma" type="button"><span class="ms">content_copy</span><span data-i18n="inst.copy">Copy link</span></button>
+      </div>
+      <p class="notes" data-i18n="inst.notes">A permanent link: it always points to the newest build. Every version and its changelog is on the <a href="https://github.com/vanth34/Alter/releases" target="_blank" rel="noopener">Releases</a> page, and an installed Alter tells you about updates itself.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CREDITS ================= -->
+<section id="credits" style="padding-top:0">
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <p class="eyebrow" data-i18n="cr.eyebrow">Built with</p>
+        <h2 class="h2" data-i18n="cr.h">Standing on open source</h2>
+      </div>
+    </div>
+    <div class="credits">
+      <a href="https://github.com/CodingGay/BlackDex" target="_blank" rel="noopener"><b>BlackDex</b><span>CodingGay · Apache-2.0</span></a>
+      <a href="https://github.com/jmpews/Dobby" target="_blank" rel="noopener"><b>Dobby</b><span>jmpews · Apache-2.0</span></a>
+      <a href="https://github.com/iqiyi/xHook" target="_blank" rel="noopener"><b>xHook</b><span>iQIYI · MIT</span></a>
+      <a href="https://github.com/tiann/FreeReflection" target="_blank" rel="noopener"><b>FreeReflection</b><span>tiann · MIT</span></a>
+      <a href="https://github.com/muhammadrizwan87/il2cppdumper" target="_blank" rel="noopener"><b>il2cppdumper</b><span>MuhammadRizwan · MIT</span></a>
+      <a href="https://github.com/muhammadrizwan87/dexdumper" target="_blank" rel="noopener"><b>dexdumper</b><span>MuhammadRizwan · MIT</span></a>
+      <a href="https://github.com/topjohnwu/libsu" target="_blank" rel="noopener"><b>libsu</b><span>topjohnwu · Apache-2.0</span></a>
+      <a href="https://github.com/REAndroid/ARSCLib" target="_blank" rel="noopener"><b>ARSCLib</b><span>REAndroid · Apache-2.0</span></a>
+      <a href="https://android.googlesource.com/platform/tools/apksig" target="_blank" rel="noopener"><b>apksig</b><span>AOSP · Apache-2.0</span></a>
+      <a href="https://github.com/google/smali" target="_blank" rel="noopener"><b>smali</b><span>Google · BSD-3-Clause</span></a>
+      <a href="https://github.com/QWEA0/liquidglass" target="_blank" rel="noopener"><b>liquidglass</b><span>pandadog · MIT</span></a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <div class="big">Alt<em>er</em></div>
+        <p data-i18n="foot.disc">Alter is intended for security research, education and modifying apps you own or are allowed to modify. You are solely responsible for how you use it and for complying with applicable laws and third-party terms.</p>
+      </div>
+      <nav aria-label="Links">
+        <a href="https://t.me/AlterProject" target="_blank" rel="noopener"><span class="ms">send</span><span data-i18n="foot.channel">Project channel</span></a>
+        <a href="https://t.me/revexlab" target="_blank" rel="noopener"><span class="ms">smart_toy</span><span data-i18n="foot.dev">Developer: RevEx</span></a>
+        <a href="https://github.com/vanth34/Alter" target="_blank" rel="noopener"><span class="ms">deployed_code</span>GitHub</a>
+        <a href="https://github.com/vanth34/Alter/blob/main/LICENSE" target="_blank" rel="noopener"><span class="ms">security</span><span data-i18n="foot.lic">License</span></a>
+      </nav>
+    </div>
+    <p class="copy" data-i18n="foot.copy">© 2026 Alter · Made by RevEx</p>
+  </div>
+</footer>
+
+<div class="toast glass" id="toast" role="status"></div>
+
+<script>
+(function(){
+'use strict';
+var doc=document.documentElement;
+doc.classList.add('js');
+var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function store(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+
+/* ---------------- i18n ---------------- */
+var RU={
+ 'nav.tools':'Инструменты','nav.bench':'Smali → Regex','nav.screens':'Экраны','nav.install':'Установка',
+ 'hero.latest':'Azoth · последний релиз',
+ 'hero.tagline':'Современный набор инструментов для модификации APK и реверс-инжиниринга',
+ 'hero.lead':'Alter объединяет инструменты для работы с APK в одном приложении. Он создан для мододелов и реверс-инженеров, которым нужен удобный способ анализировать, патчить и изменять программы. Всё необходимое для работы в одном месте, без лишних инструментов и сложной настройки.',
+ 'hero.dl':'Скачать APK','hero.root':'Root не обязателен','hero.downloads':'загрузок',
+ 'tools.eyebrow':'Инструменты','tools.h':'Всё, что раньше делали на ПК',
+ 'tools.sub':'Alter, приложение «всё в одном» для реверс-инженеров и моддеров, объединяет задачи, которые обычно приходится решать в разных инструментах, а часто и на ПК.',
+ 'pick.q':'Какой дампер выбрать?','pick.o1':'Обычное приложение','pick.o2':'Видит песочницу, есть root','pick.o3':'Unity-игра','pick.o4':'Ничего не помогло',
+ 'tag.noroot':'Без root','tag.onetap':'Одно нажатие',
+ 'rootless.h':'Дамп DEX без root','rootless.p':'Извлекайте DEX из упакованных и защищённых приложений без root.',
+ 'rootless.l1':'<b>Песочница:</b> приложение запускается в песочнице BlackDex, а его DEX достаётся прямо из памяти. Исходное приложение не меняется.',
+ 'rootless.l2':'<b>Глубокий анпак:</b> возвращает извлечённые упаковщиком тела методов обратно в DEX, работает и на Android 12+.',
+ 'rootless.l3':'<b>Hook-дамп и автовызов</b> для упаковщиков, которые подгружают код позже.',
+ 'rootless.l4':'<b>32-битные цели</b> через отдельное приложение-помощник.',
+ 'more':'Подробнее',
+ 'root.h':'ROOT-дамп DEX','root.p':'Если есть root, Alter перезапускает настоящее приложение и собирает все загруженные им DEX. Режим <b>God Dump</b> ищет объекты <code>DexFile</code> в памяти ART и восстанавливает скрытые DEX, которые обычный дамп не видит.',
+ 'il2cpp.h':'Дампер il2cpp','il2cpp.p':'Получайте <code>dump.cs</code> из Unity-игр с классами, полями, смещениями и адресами методов.',
+ 'il2cpp.l1':'<b>Статический режим:</b> читает <code>libil2cpp.so</code> и <code>global-metadata.dat</code> из установленной игры или файла <code>.apk</code>, <code>.apks</code>, <code>.xapk</code>, <code>.apkm</code>. Игру запускать не нужно.',
+ 'il2cpp.l2':'<b>Скрипты для дизассемблеров:</b> рядом с <code>dump.cs</code> сохраняются готовые скрипты для IDA Pro, Ghidra и других популярных дизассемблеров.',
+ 'inject.h':'Внедрение нативных дамперов','inject.p':'Если песочница или статический дамп не справились, внедрите дампер прямо в APK одним нажатием, без ручной правки <code>smali</code> и без сборочного окружения. Установите пропатченный APK, запустите, и приложение сдампит себя само.',
+ 'inject.l1':'<b>il2cpp dumper:</b> дампит классы, методы и поля IL2CPP из запущенного Unity-приложения.',
+ 'inject.l2':'<b>dex dumper:</b> извлекает DEX-файлы из памяти запущенного приложения.',
+ 'inject.l3':'Сплиты сливаются в один APK, внутрь кладутся обе ARM-архитектуры.',
+ 'inject.l4':'Повторная <b>подпись</b> пропатченного APK или сохранение оригинальной.',
+ 'regex.h':'Менеджер регулярок','regex.p':'Организованная библиотека с поиском для регулярных выражений, которыми вы пользуетесь при моддинге.',
+ 'regex.l1':'<b>Свои паттерны</b> в именованных папках под задачи.','regex.l2':'<b>Подсветка синтаксиса:</b> ошибки видны сразу.',
+ 'regex.l3':'<b>Бэкап и импорт</b> в <code>.zip</code> с <code>JSON</code>-файлами. Импорт ничего не удаляет, а только добавляет.',
+ 's2r.p':'Вставьте фрагмент smali и получите готовую регулярку, которая найдёт его и после пересборки приложения.','s2r.try':'Попробовать прямо здесь',
+ 'dlg.h':'Генератор Alert-диалогов','dlg.p':'Генерируйте готовый <b>Smali</b>-код alert-диалогов прямо из формы. Выберите стиль, посмотрите превью, и Alter соберёт <code>classes.dex</code> и строку вызова для вашего проекта.',
+ 'look.h':'Выглядит как родное','look.l1':'Material 3 и динамические цвета Monet, светлая и тёмная темы.','look.l2':'Плавающая панель с эффектом Liquid Glass, качество которого подстраивается под устройство.','look.l3':'Интерфейс переведён на многие языки.','look.l4':'Встроенная проверка обновлений.',
+ 'bench.eyebrow':'Живое демо','bench.h':'Smali в Regex прямо в браузере',
+ 'bench.sub':'Те же правила конвертации, что и в приложении. Меняйте smali, и паттерн обновится сразу. Ниже он проверяется на том же коде после пересборки.',
+ 'bench.reset':'Пример','bench.copy':'Копировать',
+ 'bench.proof':'Тот же метод после пересборки: другие регистры и метки. Поиск по исходному тексту его бы не нашёл.',
+ 'screens.eyebrow':'Экраны','screens.h':'Один минималистичный интерфейс на Material 3',
+ 'sc.home':'Главная','sc.dex':'Дамп DEX без root','sc.root':'ROOT-дамп DEX','sc.il2cpp':'Дампер il2cpp','sc.regex':'Менеджер регулярок',
+ 'inst.eyebrow':'Установка','inst.h':'Три шага, без ПК','inst.root':'Не нужен',
+ 'inst.s1':'Нажмите <b>Скачать APK</b> вверху: кнопка всегда отдаёт последнюю версию.','inst.s2':'Откройте скачанный <code>app-release.apk</code>.','inst.s3':'Разрешите установку из браузера или файлового менеджера, если Android спросит.',
+ 'inst.copy':'Копировать',
+ 'inst.notes':'Постоянная ссылка всегда ведёт на свежую сборку. Все версии и списки изменений лежат на странице <a href="https://github.com/vanth34/Alter/releases" target="_blank" rel="noopener">Releases</a>, а установленный Alter сам сообщит об обновлении.',
+ 'cr.eyebrow':'Используемые компоненты','cr.h':'На плечах open source',
+ 'foot.disc':'Alter предназначен для исследований безопасности, обучения и модификации приложений, которыми вы владеете или которые вправе изменять. Вы несёте полную ответственность за использование инструмента и за соблюдение применимых законов и условий третьих сторон.',
+ 'foot.channel':'Канал проекта','foot.dev':'Разработчик: RevEx','foot.lic':'Лицензия','foot.copy':'© 2026 Alter · Разработано RevEx',
+ 'pick.rootless':'Начните с <b>дампа DEX без root</b>: песочница, оригинал не меняется.',
+ 'pick.root':'Используйте <b>ROOT-дамп</b>: настоящее приложение и God Dump по памяти ART.',
+ 'pick.il2cpp':'Берите <b>дампер il2cpp</b>: <code>dump.cs</code> без запуска игры.',
+ 'pick.inject':'<b>Внедрите дампер</b> в сам APK, и приложение сдампит себя само.',
+ 'toast.copied':'Скопировано','proof.ok':'совпадает','proof.no':'не совпало','rel.latest':'последний релиз'
+};
+var EN_EXTRA={
+ 'pick.rootless':'Start with the <b>rootless DEX dump</b>: a sandbox, the original app is untouched.',
+ 'pick.root':'Use the <b>ROOT dump</b>: the real app, plus God Dump over ART memory.',
+ 'pick.il2cpp':'Use the <b>il2cpp dumper</b>: <code>dump.cs</code> without launching the game.',
+ 'pick.inject':'<b>Inject the dumper</b> into the APK and the app dumps itself.',
+ 'toast.copied':'Copied','proof.ok':'match','proof.no':'no match','rel.latest':'latest release'
+};
+var EN={};
+var nodes=document.querySelectorAll('[data-i18n]');
+nodes.forEach(function(n){EN[n.getAttribute('data-i18n')]=n.innerHTML});
+for(var k in EN_EXTRA)EN[k]=EN_EXTRA[k];
+var lang=doc.getAttribute('lang')==='ru'?'ru':'en';
+function t(k){return (lang==='ru'?RU[k]:EN[k])||EN[k]||k}
+function applyLang(){
+  doc.setAttribute('lang',lang);
+  nodes.forEach(function(n){var k=n.getAttribute('data-i18n');var v=t(k);if(v!=null)n.innerHTML=v});
+  document.querySelectorAll('[data-href-ru]').forEach(function(a){
+    if(!a.dataset.hrefEn)a.dataset.hrefEn=a.getAttribute('href');
+    a.setAttribute('href',lang==='ru'?a.dataset.hrefRu:a.dataset.hrefEn);
+  });
+  document.getElementById('langLbl').textContent=lang==='ru'?'EN':'RU';
+  document.getElementById('langBtn').setAttribute('aria-label',lang==='ru'?'Switch to English':'Переключить на русский');
+  if(rel.name)setRel();
+  setPick(curPick);
+  runBench();
+}
+document.getElementById('langBtn').addEventListener('click',function(){lang=lang==='ru'?'en':'ru';store('alter-lang',lang);applyLang()});
+
+/* ---------------- theme ---------------- */
+var mq=window.matchMedia('(prefers-color-scheme: light)');
+function isLight(){var a=doc.getAttribute('data-theme');return a?a==='light':mq.matches}
+function syncThemeIcon(){document.getElementById('themeIc').textContent=isLight()?'dark_mode':'light_mode';
+  var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',isLight()?'#fbf8ff':'#141118')}
+document.getElementById('themeBtn').addEventListener('click',function(){var n=isLight()?'dark':'light';doc.setAttribute('data-theme',n);store('alter-theme',n);syncThemeIcon();hexColor()});
+if(mq.addEventListener)mq.addEventListener('change',function(){syncThemeIcon();hexColor()});
+syncThemeIcon();
+
+/* ---------------- toast + copy ---------------- */
+var toastEl=document.getElementById('toast'),toastT;
+function toast(msg){toastEl.textContent=msg;toastEl.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){toastEl.classList.remove('show')},1600)}
+function copy(text,el){
+  function fallback(){try{var r=document.createRange();r.selectNodeContents(el);var s=getSelection();s.removeAllRanges();s.addRange(r)}catch(e){}}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(function(){toast(t('toast.copied'))},fallback)}else fallback();
+}
+document.getElementById('copyPerma').addEventListener('click',function(){copy('https://github.com/vanth34/Alter/releases/latest/download/app-release.apk',document.getElementById('permaTxt'))});
+
+/* ---------------- dumper picker ---------------- */
+var curPick='rootless';
+function setPick(p){
+  curPick=p;
+  document.querySelectorAll('#pickOpts button').forEach(function(b){b.setAttribute('aria-pressed',b.dataset.pick===p?'true':'false')});
+  document.querySelectorAll('.tile[data-tool]').forEach(function(tl){tl.classList.toggle('pick',tl.dataset.tool===p)});
+  document.getElementById('pickA').innerHTML=t('pick.'+p);
+}
+document.getElementById('pickOpts').addEventListener('click',function(e){var b=e.target.closest('button');if(b)setPick(b.dataset.pick)});
+
+/* tile spotlight */
+document.querySelectorAll('.tile').forEach(function(tl){
+  tl.addEventListener('pointermove',function(e){var r=tl.getBoundingClientRect();tl.style.setProperty('--mx',(e.clientX-r.left)+'px');tl.style.setProperty('--my',(e.clientY-r.top)+'px')});
+});
+
+/* ---------------- Smali in Regex (rules from docs/features/smali-to-regex.md) ---------------- */
+var SAMPLE=[
+'    invoke-virtual {p0}, Lcom/example/billing/Store;->isPremium()Z',
+'    move-result v0',
+'    if-eqz v0, :cond_1a',
+'    const/4 v1, 0x1',
+'    return v1',
+'    :cond_1a',
+'    goto :goto_3'].join('\n');
+var SPECIAL=/[\[\](){}\\$^|+*?."]/g;
+var TOKEN=/(\b[vp]\d+\b)|(:(cond|goto)_[A-Za-z0-9]+)/g;
+function esc(s){return s.replace(SPECIAL,'\\$&')}
+function convert(src){
+  /* returns {plain, parts:[{t,cls}]} */
+  var parts=[],lines=src.replace(/\r\n?/g,'\n').split('\n');
+  lines.forEach(function(line,i){
+    if(i>0)parts.push({t:'\\n',c:'s'});
+    var m=line.match(/^( {4})+/);
+    if(m){for(var j=0;j<m[0].length/4;j++)parts.push({t:'\\s{4}',c:'s'});line=line.slice(m[0].length)}
+    var last=0,mm;TOKEN.lastIndex=0;
+    while((mm=TOKEN.exec(line))){
+      if(mm.index>last)pushText(line.slice(last,mm.index));
+      if(mm[1])parts.push({t:'[vp]\\d+',c:'r'});else parts.push({t:':'+mm[3]+'_[A-Za-z0-9]+',c:'l'});
+      last=TOKEN.lastIndex;
+    }
+    if(last<line.length)pushText(line.slice(last));
+  });
+  function pushText(s){var re=/[\[\](){}\\$^|+*?."]/g,l=0,x;while((x=re.exec(s))){if(x.index>l)parts.push({t:s.slice(l,x.index)});parts.push({t:'\\'+x[0],c:'e'});l=re.lastIndex}if(l<s.length)parts.push({t:s.slice(l)})}
+  return {plain:parts.map(function(p){return p.t}).join(''),parts:parts};
+}
+/* simulate a rebuild: renumber registers and rename labels */
+function rebuild(src){
+  var regMap={},n=0,labMap={},ln=0;
+  return src.replace(/\b([vp])(\d+)\b/g,function(_,k,d){var key=k+d;if(!(key in regMap)){regMap[key]=(k==='p'?'p':'v')+((parseInt(d,10)+3+n++)%16)}return regMap[key]})
+            .replace(/:(cond|goto)_([A-Za-z0-9]+)/g,function(_,k,id){var key=k+id;if(!(key in labMap)){labMap[key]=(ln++ ? (7+ln).toString(16) : '2f')}return ':'+k+'_'+labMap[key]});
+}
+function htmlEsc(s){return s.replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c]})}
+var ta=document.getElementById('smali'),rxEl=document.getElementById('rx'),rbEl=document.getElementById('rebuilt'),badge=document.getElementById('proofBadge');
+var lastRx='';
+function runBench(){
+  var src=ta.value;var out=convert(src);lastRx=out.plain;
+  rxEl.innerHTML=out.parts.map(function(p){return p.c?'<span class="'+p.c+'">'+htmlEsc(p.t)+'</span>':htmlEsc(p.t)}).join('')||'<span class="e">…</span>';
+  var rb=rebuild(src);
+  var ok=false;
+  try{ok=src.trim().length>0&&new RegExp(out.plain).test(rb)}catch(e){ok=false}
+  var diffHtml=htmlEsc(rb).replace(/\b([vp]\d+)\b|(:(?:cond|goto)_[A-Za-z0-9]+)/g,'<mark>$&</mark>');
+  rbEl.innerHTML=diffHtml;
+  badge.classList.toggle('bad',!ok);
+  badge.querySelector('.ms').textContent=ok?'check':'bolt';
+  document.getElementById('proofTxt').textContent=t(ok?'proof.ok':'proof.no');
+}
+ta.value=SAMPLE;
+ta.addEventListener('input',runBench);
+ta.addEventListener('keydown',function(e){if(e.key==='Tab'&&!e.shiftKey&&!e.altKey&&!e.ctrlKey&&!e.metaKey){e.preventDefault();var s=ta.selectionStart,en=ta.selectionEnd;ta.setRangeText('    ',s,en,'end');runBench()}});
+document.getElementById('resetBtn').addEventListener('click',function(){ta.value=SAMPLE;runBench()});
+document.getElementById('copyRx').addEventListener('click',function(){copy(lastRx,rxEl)});
+
+/* ---------------- release info (live on GitHub Pages, static fallback elsewhere) ---------------- */
+var rel={tag:'2026.11.02',name:'Azoth'};
+function setRel(){document.getElementById('relTag').textContent=rel.tag;document.getElementById('relName').textContent=(rel.name?rel.name+' · ':'')+t('rel.latest')}
+function parseVer(s){var m=String(s||'').match(/(\d{4}\.\d{2}\.\d{2})\s*(.*)$/);return m?{tag:m[1],name:m[2].trim()}:null}
+function fmt(n){try{return new Intl.NumberFormat(lang==='ru'?'ru-RU':'en-US').format(n)}catch(e){return String(n)}}
+function loadRel(){
+  if(!window.fetch)return;
+  fetch('https://api.github.com/repos/vanth34/Alter/releases?per_page=100',{headers:{'Accept':'application/vnd.github+json'}})
+  .then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(list){
+    if(!Array.isArray(list)||!list.length)return;
+    var latest=list.find(function(x){return !x.draft&&!x.prerelease})||list[0];
+    var v=parseVer(latest.name)||parseVer(latest.tag_name);
+    if(v){rel=v;setRel()}
+    var total=0;list.forEach(function(x){(x.assets||[]).forEach(function(a){total+=a.download_count||0})});
+    if(total>0){document.getElementById('dlCount').textContent=fmt(total);document.getElementById('dlFact').hidden=false}
+  }).catch(function(){});
+}
+
+/* ---------------- hero: title decode ---------------- */
+(function(){
+  var el=document.getElementById('title');if(reduce)return;
+  var word='Alter',hex='0123456789ABCDEF',frame=0,total=26;
+  el.innerHTML=word.split('').map(function(c){return '<span class="s">'+c+'</span>'}).join('');
+  var spans=el.querySelectorAll('.s');
+  function tick(){
+    frame++;
+    spans.forEach(function(s,i){var lock=8+i*4;s.textContent=frame>=lock?word[i]:hex[(Math.random()*16)|0]});
+    if(frame<total)setTimeout(tick,45);else spans.forEach(function(s,i){s.textContent=word[i]});
+  }
+  setTimeout(tick,180);
+})();
+
+/* ---------------- hero: hex field ---------------- */
+var cv=document.getElementById('hex'),ctx=cv.getContext('2d'),HC='#cfbcfe',cells=[],cols=0,rows=0,cw=30,ch=22,mx=-999,my=-999,running=true,lastT=0;
+var DEXHDR=[0x64,0x65,0x78,0x0A,0x30,0x33,0x35,0x00];
+function hexColor(){HC=getComputedStyle(doc).getPropertyValue('--hex').trim()||'#cfbcfe';drawHex(true)}
+function sizeHex(){
+  var r=cv.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
+  cv.width=r.width*dpr;cv.height=r.height*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+  cw=window.innerWidth<720?26:30;ch=window.innerWidth<720?20:22;
+  cols=Math.ceil(r.width/cw)+1;rows=Math.ceil(r.height/ch)+1;cells=[];
+  for(var y=0;y<rows;y++)for(var x=0;x<cols;x++){
+    var b=(y%6===1&&x>=2&&x<10)?DEXHDR[x-2]:(Math.random()*256)|0;
+    cells.push({b:b,a:Math.random()*.5,m:(y%6===1&&x>=2&&x<10)});
+  }
+  drawHex(true);
+}
+function drawHex(force){
+  var r=cv.getBoundingClientRect();ctx.clearRect(0,0,r.width,r.height);
+  ctx.font='500 11px "JetBrains Mono", ui-monospace, monospace';ctx.textBaseline='top';ctx.fillStyle=HC;
+  for(var i=0;i<cells.length;i++){
+    var c=cells[i],x=(i%cols)*cw,y=((i/cols)|0)*ch;
+    if(!force&&!reduce&&Math.random()<.012){c.b=c.m?c.b:(Math.random()*256)|0;c.a=.9}
+    c.a+=(0.13-c.a)*.06;
+    var dx=x-mx,dy=y-my,d=Math.sqrt(dx*dx+dy*dy),glow=d<170?(1-d/170)*.75:0;
+    ctx.globalAlpha=Math.min(1,(c.m?.55:c.a)+glow);
+    ctx.fillText((c.b<16?'0':'')+c.b.toString(16).toUpperCase(),x+4,y+4);
+  }
+  ctx.globalAlpha=1;
+}
+function loop(ts){if(running&&ts-lastT>80){drawHex(false);lastT=ts}requestAnimationFrame(loop)}
+var hero=document.querySelector('.hero');
+hero.addEventListener('pointermove',function(e){var r=cv.getBoundingClientRect();mx=e.clientX-r.left;my=e.clientY-r.top;tilt(e)});
+hero.addEventListener('pointerleave',function(){mx=my=-999;var p=document.getElementById('heroPhone');p.style.setProperty('--ry','0deg');p.style.setProperty('--rx','0deg')});
+if('IntersectionObserver' in window){new IntersectionObserver(function(es){running=es[0].isIntersecting}).observe(hero)}
+function tilt(e){if(reduce||e.pointerType==='touch')return;var s=document.getElementById('stage').getBoundingClientRect();var px=(e.clientX-s.left)/s.width-.5,py=(e.clientY-s.top)/s.height-.5;
+  var p=document.getElementById('heroPhone');p.style.setProperty('--ry',(px*16).toFixed(2)+'deg');p.style.setProperty('--rx',(-py*12).toFixed(2)+'deg')}
+var rT;window.addEventListener('resize',function(){clearTimeout(rT);rT=setTimeout(sizeHex,150)});
+
+/* hero phone cycles through real screens */
+(function(){
+  if(reduce)return;
+  var shots=['home','dex-dumper-root','regex','smali-to-regex','il2cpp-dump','dex-dumper'],i=0,img=document.querySelector('#heroPhone img');
+  shots.forEach(function(s){var im=new Image();im.src='assets/screens/'+s+'.webp'});
+  setInterval(function(){if(document.hidden||!running)return;i=(i+1)%shots.length;img.animate([{opacity:1,filter:'blur(0)'},{opacity:.0,filter:'blur(6px)'}],{duration:260,easing:'ease-in'}).onfinish=function(){img.src='assets/screens/'+shots[i]+'.webp';img.animate([{opacity:0,filter:'blur(6px)'},{opacity:1,filter:'blur(0)'}],{duration:380,easing:'ease-out'})}},3200);
+})();
+
+/* nav: highlight current section */
+if('IntersectionObserver' in window){
+  var links={};document.querySelectorAll('.nav-links a').forEach(function(a){links[a.getAttribute('href').slice(1)]=a});
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){for(var k in links)links[k].classList.toggle('on',k===e.target.id)}})},{rootMargin:'-45% 0px -50% 0px'});
+  ['tools','bench','screens','install'].forEach(function(id){var s=document.getElementById(id);if(s)io.observe(s)});
+}
+
+/* reveal below-the-fold blocks (content is visible without JS / before observer) */
+if(!reduce&&'IntersectionObserver' in window){
+  var vh=window.innerHeight;
+  var ro=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.remove('pre');ro.unobserve(e.target)}})},{rootMargin:'0px 0px -8% 0px'});
+  document.querySelectorAll('.rv').forEach(function(el,i){if(el.getBoundingClientRect().top>vh){el.classList.add('pre');el.style.transitionDelay=((i%3)*70)+'ms';ro.observe(el)}});
+}
+
+applyLang();
+hexColor();sizeHex();requestAnimationFrame(loop);
+loadRel();
+})();
+</script>
+</body>
+</html>
